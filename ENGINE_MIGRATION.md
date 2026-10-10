@@ -12,7 +12,9 @@ customer-local history and risk settings; encrypted credentials decrypted by the
 supervisor and sent through a pipe; start/pause/stop controls; entry permission
 expires after 90 seconds without a successful control-plane update. Exit monitoring
 continues when entries are paused. Manual/untracked positions block initial start.
-Credential rotation while an engine exists requires operator review.
+Credential rotation pauses entries and waits for the old account to be flat before
+replacing its process. The backend rejects replacement while running or while
+positions are open and requires a fresh matching credential-version snapshot.
 
 Original current configuration: minimum capital 100 USDT; 10% allocation per trade;
 10 slots (7 regular + 3 special); normal leverage 3–5x; special leverage 5–7x;

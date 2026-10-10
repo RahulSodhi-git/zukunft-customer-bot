@@ -7,6 +7,7 @@ from .config import Settings
 from .control_plane import ControlPlane
 from .crypto import CredentialDecryptor
 from .runtime import TenantRuntime
+from .strategy import atomic_json
 
 LOGGER = logging.getLogger("zukunft-worker")
 
@@ -33,9 +34,11 @@ class WorkerAgent:
                         paused_account = {**account, "desired_state": "paused"}
                         runtime.update(paused_account)
                         snapshot = runtime.snapshot()
-                        snapshot["error"] = "Credential change pending operator review; entries paused, exits remain active."
-                        snapshots.append(snapshot)
-                        continue
+                        if snapshot["openPositions"]:
+                            snapshot["error"] = "Waiting for positions to close before loading replacement credentials; exits remain active."
+                            snapshots.append(snapshot)
+                            continue
+                        runtime.strategy.shutdown()
                 if runtime is None or runtime.credential_version != version:
                     credentials = self.decryptor.decrypt(str(account["binance_ciphertext"]))
                     coinalyze = self.decryptor.decrypt(str(account["coinalyze_ciphertext"]))
@@ -48,15 +51,22 @@ class WorkerAgent:
                     LOGGER.info("Provisioned customer %s", account.get("customer_number"))
                 else:
                     runtime.update(account)
-                snapshots.append(runtime.snapshot())
+                snapshot = runtime.snapshot()
+                runtime.last_snapshot = snapshot
+                snapshots.append(snapshot)
             except Exception as exc:  # one customer must never stop the others
-                LOGGER.exception("Customer %s sync failed", account.get("customer_number", user_id))
+                LOGGER.error("Customer %s sync failed (%s)", account.get("customer_number", user_id), type(exc).__name__)
+                runtime = self.runtimes.get(user_id)
+                if runtime and runtime.strategy:
+                    atomic_json(runtime.strategy.directory / "entry_control.json", {"entries_paused": True})
+                previous = getattr(self.runtimes.get(user_id), "last_snapshot", {})
                 snapshots.append({
                     "userId": user_id,
                     "actualState": "error",
-                    "error": str(exc)[:500],
-                    "openPositions": [],
-                    "recentClosedTrades": [],
+                    "error": "Exchange sync failed. Displayed positions may be stale; trading health is not confirmed.",
+                    "openPositions": previous.get("openPositions", []),
+                    "recentClosedTrades": previous.get("recentClosedTrades", []),
+                    "credentialVersion": version,
                 })
         for user_id in set(self.runtimes) - active_ids:
             runtime = self.runtimes[user_id]

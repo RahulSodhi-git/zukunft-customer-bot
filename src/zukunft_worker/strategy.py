@@ -104,3 +104,5 @@ class CustomerStrategy:
                 self.process.wait(timeout=10)
         if self.log_handle:
             self.log_handle.close()
+        self.process = None
+        self.log_handle = None

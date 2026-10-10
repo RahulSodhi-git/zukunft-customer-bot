@@ -73,6 +73,7 @@ class TenantRuntime:
 
         return {
             "userId": self.user_id,
+            "credentialVersion": self.credential_version,
             "actualState": actual_state,
             "error": error,
             "openPositions": positions,
