@@ -1,0 +1,26 @@
+[Unit]
+Description=Zukunft multi-tenant customer worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zukunft-worker
+Group=zukunft-worker
+EnvironmentFile=/etc/zukunft-worker.env
+WorkingDirectory=/opt/zukunft-worker/current
+ExecStart=/opt/zukunft-worker/venv/bin/python -m zukunft_worker.main
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zukunft-worker
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryMax=650M
+
+[Install]
+WantedBy=multi-user.target
+

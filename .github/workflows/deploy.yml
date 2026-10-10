@@ -1,0 +1,44 @@
+name: Deploy Oracle worker
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oracle-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Package release
+        run: tar --exclude='.git' --exclude='.github' -czf /tmp/zukunft-worker.tgz .
+      - name: Configure SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.PROD_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PROD_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Upload and activate
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          RELEASE_ID: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          scp -i ~/.ssh/deploy_key /tmp/zukunft-worker.tgz "$PROD_USER@$PROD_HOST:/tmp/zukunft-worker-$RELEASE_ID.tgz"
+          ssh -i ~/.ssh/deploy_key "$PROD_USER@$PROD_HOST" "bash /opt/zukunft-worker/current/deploy/activate-release.sh /tmp/zukunft-worker-$RELEASE_ID.tgz $RELEASE_ID"
+

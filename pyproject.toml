@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "zukunft-customer-worker"
+version = "0.1.0"
+description = "Multi-tenant Zukunft Trading customer worker"
+requires-python = ">=3.10"
+dependencies = ["cryptography==50.0.2"]
+
+[project.scripts]
+zukunft-worker = "zukunft_worker.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
