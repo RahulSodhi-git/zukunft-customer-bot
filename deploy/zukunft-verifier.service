@@ -1,0 +1,25 @@
+[Unit]
+Description=Zukunft read-only Binance connection verifier
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=zukunft-worker
+Group=zukunft-worker
+EnvironmentFile=/etc/zukunft-worker.env
+WorkingDirectory=/opt/zukunft-worker/current
+ExecStart=/opt/zukunft-worker/venv/bin/python -m zukunft_worker.verifier
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zukunft-worker
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryMax=150M
+
+[Install]
+WantedBy=multi-user.target

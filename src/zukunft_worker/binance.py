@@ -16,15 +16,15 @@ class BinanceFutures:
         self.api_secret = api_secret.encode("utf8")
         self.base_url = base_url.rstrip("/")
 
-    def _signed_get(self, path: str, params: dict[str, Any] | None = None) -> Any:
-        values = {**(params or {}), "timestamp": int(time.time() * 1000), "recvWindow": 5000}
+    def _signed_get(self, path: str, params: dict[str, Any] | None = None, *, timestamp_offset: int = 0, timeout: int = 15) -> Any:
+        values = {**(params or {}), "timestamp": int(time.time() * 1000) + timestamp_offset, "recvWindow": 5000}
         query = urllib.parse.urlencode(values)
         signature = hmac.new(self.api_secret, query.encode("utf8"), hashlib.sha256).hexdigest()
         request = urllib.request.Request(
             f"{self.base_url}{path}?{query}&signature={signature}",
             headers={"X-MBX-APIKEY": self.api_key},
         )
-        with urllib.request.urlopen(request, timeout=15) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.loads(response.read().decode("utf8"))
 
     def open_positions(self) -> list[dict[str, Any]]:

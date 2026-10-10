@@ -14,7 +14,7 @@ Implemented and tested locally:
 - Snapshot credential versions prevent stale key generations reporting ready.
 - Per-customer failure handling retains last-known positions and redacts exception messages.
 
-Tests: 91 Python tests run, 90 passed and one old-dashboard test skipped.
+Tests: 94 Python tests run, 93 passed and one old-dashboard test skipped.
 Worker stress: 100 mocked customer accounts / 1,000 snapshots, plus failure isolation and rotation.
 Backend: 500 mocked customers / 1,000 HTTP operations, 25 concurrent requests per batch,
 with real RSA encryption/decryption but mocked database and exchange verification.
@@ -38,9 +38,15 @@ Read-only live checks:
 - Existing tradebot VM/repository unchanged.
 
 Before user end-to-end testing:
-1. Complete a real paid test user's API verification. Binance verification still uses
-   Render and honours the current cooldown until 2026-10-10 20:50:43 UTC; it has not
-   been migrated to Oracle. Check exchange IP restrictions before testing real keys.
+1. Complete a real paid test user's API verification after the recorded cooldown
+   expires (2026-10-10 20:50:43 UTC). Verification now uses an authenticated encrypted
+   job queue consumed by the separate read-only Oracle verifier, not Render egress.
+   Add customer VM outbound IP 137.23.35.138 to the Binance key's trusted IP list.
+   The verifier checks only time/account endpoints, serializes requests, persists
+   418/429 cooldown across restarts, and never loads the trading engine.
+   Temporary unverified ciphertext is deleted after completion, timeout or expiry.
+   This does NOT yet provide shared request budgeting for trading engine processes
+   or shared market WebSockets; live trading remains disabled pending that work.
 2. Enable only read-only customer-worker monitoring after inspecting its release/configuration.
 3. Configure PayPal for a sandbox payment test (normal customer onboarding needs this).
 4. Confirm real encrypted API handoff, worker version acknowledgement and exchange snapshots.
