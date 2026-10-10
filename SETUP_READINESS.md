@@ -31,10 +31,17 @@ testnet order or live-money acceptance tests. They do not establish 100-customer
 Read-only live checks:
 - Backend /health returns ok=true, paypalConfigured=false, phoneOtpConfigured=false.
 - Vercel production now serves the new API-only portal and separate trading page.
-- Render production runs customer integration plus dependency patch 35bd904 with encryption configuration.
+- Render production revision b802eea runs encrypted Oracle verification with the previous
+  Binance ban deadline preserved; its production /health response confirms that revision.
 - Backend dependency audit reports zero known vulnerabilities after updating proxy-addr.
 - Authenticated /worker/accounts check from the new Oracle VM returns HTTP 200.
 - Oracle zukunft-customers-01: worker inactive, disabled, EXECUTION_ENABLED=false.
+- The separate read-only zukunft-verifier service is active/enabled on Oracle release
+  435cd42, with no restart failures after correcting its encryption directory access.
+- Backend CI passed; queue tests cover worker authentication, RSA encryption, one-time
+  claiming, preserved cooldown, completion cleanup and timeout cleanup.
+- Real-key verification remains untested until the current ban expires and the user
+  adds the customer server IP to the Binance key's trusted-IP list.
 - Existing tradebot VM/repository unchanged.
 
 Before user end-to-end testing:
