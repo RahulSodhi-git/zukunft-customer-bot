@@ -12,8 +12,8 @@ install -d -o zukunft-worker -g zukunft-worker -m 0700 /var/lib/zukunft-worker/s
 python3 -m venv /opt/zukunft-worker/venv
 install -m 0644 deploy/zukunft-worker.service /etc/systemd/system/zukunft-worker.service
 
+install -d -o root -g zukunft-worker -m 0750 /etc/zukunft-worker
 if [[ ! -f /etc/zukunft-worker/private.pem ]]; then
-  install -d -m 0750 /etc/zukunft-worker
   openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out /etc/zukunft-worker/private.pem
   openssl pkey -in /etc/zukunft-worker/private.pem -pubout -out /etc/zukunft-worker/public.pem
   chown root:zukunft-worker /etc/zukunft-worker/private.pem
