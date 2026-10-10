@@ -28,10 +28,22 @@ class WorkerAgent:
             try:
                 runtime = self.runtimes.get(user_id)
                 version = int(account.get("credential_version", 0))
+                if runtime and runtime.strategy and runtime.strategy.process:
+                    if runtime.credential_version != version:
+                        paused_account = {**account, "desired_state": "paused"}
+                        runtime.update(paused_account)
+                        snapshot = runtime.snapshot()
+                        snapshot["error"] = "Credential change pending operator review; entries paused, exits remain active."
+                        snapshots.append(snapshot)
+                        continue
                 if runtime is None or runtime.credential_version != version:
                     credentials = self.decryptor.decrypt(str(account["binance_ciphertext"]))
+                    coinalyze = self.decryptor.decrypt(str(account["coinalyze_ciphertext"]))
+                    # 1 GB host: deliberately limit the first live pilot to one customer.
+                    admitted = self.settings.execution_enabled and not any(
+                        item.strategy for key, item in self.runtimes.items() if key != user_id)
                     runtime = TenantRuntime(account, credentials, self.settings.state_dir,
-                                            self.settings.execution_enabled)
+                                            admitted, coinalyze)
                     self.runtimes[user_id] = runtime
                     LOGGER.info("Provisioned customer %s", account.get("customer_number"))
                 else:
@@ -47,7 +59,16 @@ class WorkerAgent:
                     "recentClosedTrades": [],
                 })
         for user_id in set(self.runtimes) - active_ids:
-            self.runtimes.pop(user_id, None)
+            runtime = self.runtimes[user_id]
+            if runtime.strategy and runtime.strategy.process:
+                # Subscription/connection loss must not abandon open-position exits.
+                runtime.update({**runtime.account, "desired_state": "paused"})
+                try:
+                    runtime.snapshot()
+                except Exception:
+                    LOGGER.error("Removed customer exit monitoring needs operator review")
+            else:
+                self.runtimes.pop(user_id, None)
         self.control.heartbeat(self.settings.worker_id, snapshots)
         return len(snapshots)
 

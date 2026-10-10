@@ -1,6 +1,6 @@
 # Zukunft customer worker
 
-Multi-tenant Oracle worker for Zukunft Trading. One process reconciles many paid customer accounts while keeping each account's credentials and runtime state isolated.
+Oracle worker for Zukunft Trading. A supervisor reconciles customer accounts; each admitted trading engine runs in a separate process and state directory. The initial 1 GB VM pilot admits only one live engine. This is logical account separation, not separate OS/container security boundaries.
 
 ## Safety model
 
@@ -36,5 +36,7 @@ Required Render environment variables:
 - `WORKER_TOKEN`: a long random value shared only with the Oracle service.
 - `WORKER_PUBLIC_KEY_B64`: base64 of `/etc/zukunft-worker/public.pem` on one line.
 
-Each successful CI run on `main` triggers an atomic deployment. The previous five releases remain on the VM for rollback.
+Deployment is disabled until repository variable `PRODUCTION_DEPLOY_ENABLED=true` and the production secrets are configured. Successful main-branch push CI then triggers deployment. Execution remains separately locked by `EXECUTION_ENABLED=false` on Oracle. The current deployment script shares a virtual environment between releases: switching the source symlink is not a complete dependency rollback.
+
+See [ENGINE_MIGRATION.md](ENGINE_MIGRATION.md) for migrated rules and the outstanding live-trading acceptance checks. Use Python 3.10–3.13; CI runs Python 3.10 to match Ubuntu 22.04.
 

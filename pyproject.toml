@@ -6,12 +6,15 @@ build-backend = "setuptools.build_meta"
 name = "zukunft-customer-worker"
 version = "0.1.0"
 description = "Multi-tenant Zukunft Trading customer worker"
-requires-python = ">=3.10"
-dependencies = ["cryptography==50.0.2"]
+requires-python = ">=3.10,<3.14"
+dependencies = ["cryptography==50.0.2", "numpy==2.2.6", "pandas==2.3.3", "requests==2.32.5", "python-binance==1.0.37"]
 
 [project.scripts]
 zukunft-worker = "zukunft_worker.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"zukunft_worker.engine" = ["risk_rules.json"]
 

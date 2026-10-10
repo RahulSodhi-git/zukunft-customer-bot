@@ -6,13 +6,14 @@ from pathlib import Path
 from typing import Any
 
 from .binance import BinanceFutures
+from .strategy import CustomerStrategy
 
 
 class TenantRuntime:
     """Isolated in-memory runtime for one customer. Secrets are never written to disk."""
 
     def __init__(self, account: dict[str, Any], binance_credentials: dict[str, str], state_dir: Path,
-                 execution_enabled: bool):
+                 execution_enabled: bool, coinalyze_credentials=None):
         self.user_id = str(account["user_id"])
         self.customer_number = str(account["customer_number"])
         self.credential_version = int(account.get("credential_version", 0))
@@ -21,6 +22,9 @@ class TenantRuntime:
         self.client = BinanceFutures(binance_credentials["apiKey"], binance_credentials["apiSecret"])
         self.state_path = state_dir / f"{self.user_id}.json"
         self.state = self._load_state()
+        self.account = account
+        self.strategy = (CustomerStrategy(self.user_id, state_dir, binance_credentials,
+                                         coinalyze_credentials) if execution_enabled else None)
 
     def _load_state(self) -> dict[str, Any]:
         try:
@@ -36,6 +40,7 @@ class TenantRuntime:
         temporary.replace(self.state_path)
 
     def update(self, account: dict[str, Any]) -> None:
+        self.account = account
         self.desired_state = str(account.get("desired_state", "paused"))
 
     def snapshot(self) -> dict[str, Any]:
@@ -60,8 +65,10 @@ class TenantRuntime:
         if self.desired_state == "running" and not self.execution_enabled:
             actual_state = "paused"
             error = "Execution is safety-locked while the migrated strategy is being verified."
+        elif self.strategy:
+            actual_state, error = self.strategy.reconcile(self.account, positions)
         else:
-            actual_state = self.desired_state if self.desired_state in {"running", "paused", "stopped"} else "paused"
+            actual_state = "stopped" if self.desired_state == "stopped" else "paused"
             error = None
 
         return {
