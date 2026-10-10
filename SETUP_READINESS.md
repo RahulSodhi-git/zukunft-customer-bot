@@ -31,7 +31,8 @@ testnet order or live-money acceptance tests. They do not establish 100-customer
 Read-only live checks:
 - Backend /health returns ok=true, paypalConfigured=false, phoneOtpConfigured=false.
 - Vercel production now serves the new API-only portal and separate trading page.
-- Render production runs customer integration commit 44ae117 with encryption configuration.
+- Render production runs customer integration plus dependency patch 35bd904 with encryption configuration.
+- Backend dependency audit reports zero known vulnerabilities after updating proxy-addr.
 - Authenticated /worker/accounts check from the new Oracle VM returns HTTP 200.
 - Oracle zukunft-customers-01: worker inactive, disabled, EXECUTION_ENABLED=false.
 - Existing tradebot VM/repository unchanged.
