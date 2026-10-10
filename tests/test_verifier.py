@@ -22,11 +22,18 @@ class VerifierTests(unittest.TestCase):
     @patch("zukunft_worker.verifier.urllib.request.urlopen")
     def test_success_and_permissions(self, urlopen, get):
         urlopen.return_value.__enter__.return_value.read.return_value = json.dumps({"serverTime": int(time.time()*1000)}).encode()
-        get.return_value = {"canTrade": True}
-        self.assertEqual(self.verifier.verify(self.credentials)["status"], "verified")
+        get.return_value = {"canTrade": True, "totalWalletBalance": "123.45", "availableBalance": "100.00"}
+        result = self.verifier.verify(self.credentials)
+        self.assertEqual(result["status"], "verified")
+        self.assertEqual(result["account"]["walletBalance"], "123.45")
+        self.assertNotIn("apiSecret", result["account"])
         self.assertEqual(get.call_args.args, ("/fapi/v2/account",))
-        get.return_value = {"canTrade": False}
-        self.assertEqual(self.verifier.verify(self.credentials)["status"], "failed")
+        get.return_value = {"canTrade": False, "totalWalletBalance": "0", "availableBalance": "0"}
+        result = self.verifier.verify(self.credentials)
+        self.assertEqual(result["status"], "verified")
+        self.assertFalse(result["account"]["canTrade"])
+        get.return_value = {}
+        self.assertEqual(self.verifier.verify(self.credentials)["status"], "failed", "Never invent balances on malformed account responses")
 
     @patch("zukunft_worker.verifier.urllib.request.urlopen")
     def test_ban_persists_and_suppresses_requests(self, urlopen):

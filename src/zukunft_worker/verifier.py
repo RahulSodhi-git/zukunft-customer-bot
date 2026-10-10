@@ -6,6 +6,8 @@ import re
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
+from decimal import Decimal
 from pathlib import Path
 
 from .binance import BinanceFutures
@@ -22,7 +24,7 @@ class Verifier:
         except (OSError, ValueError, KeyError):
             self.retry_at = 0
 
-    def verify(self, credential: dict[str, str]) -> dict[str, str]:
+    def verify(self, credential: dict[str, str]) -> dict[str, object]:
         if time.time() < self.retry_at:
             return {"status": "failed", "message": "Binance verification is cooling down. Please wait before retrying; your keys were not rejected."}
         try:
@@ -31,9 +33,20 @@ class Verifier:
                 offset = int(json.loads(response.read())["serverTime"]) - int(time.time() * 1000)
             client = BinanceFutures(credential["apiKey"], credential["apiSecret"])
             account = client._signed_get("/fapi/v2/account", timestamp_offset=offset, timeout=10)
-            if account.get("canTrade") is not True:
-                return {"status": "failed", "message": "Binance Futures trading is not enabled for this key/account. Check Futures permissions and the trusted server IP."}
-            return {"status": "verified", "message": "Binance Futures connection verified securely on the customer server."}
+            wallet = Decimal(str(account["totalWalletBalance"]))
+            available = Decimal(str(account["availableBalance"]))
+            if not wallet.is_finite() or not available.is_finite():
+                raise ValueError("Invalid account response")
+            # Loading account information is the connection check. Readable accounts
+            # may connect even when trading is disabled; starting orders is separate.
+            summary = {
+                "walletBalance": format(wallet, "f"),
+                "availableBalance": format(available, "f"),
+                "canTrade": account.get("canTrade") is True,
+                "unit": "USD" if account.get("multiAssetsMargin") is True else "USDT",
+                "loadedAt": datetime.now(timezone.utc).isoformat(),
+            }
+            return {"status": "verified", "message": "Binance account loaded. Connected.", "account": summary}
         except urllib.error.HTTPError as exc:
             try:
                 body = json.loads(exc.read(4096))
@@ -51,12 +64,12 @@ class Verifier:
                 return {"status": "failed", "message": "Binance has temporarily limited the customer server. Verification is paused automatically; do not repeatedly retry."}
             code = body.get("code")
             messages = {
-                -2015: "Binance denied access. Check the API key, Futures permissions and trusted IP 137.23.35.138.",
+                -2015: "Failed to connect Binance. Check your API key, secret, Futures access and trusted IP 137.23.35.138.",
                 -2014: "The Binance API key format is invalid. Paste the actual Binance API key, not your Zukunft account ID.",
                 -1022: "Binance could not verify the signature. Check that the API key and secret belong to the same key.",
                 -1021: "The customer server clock could not synchronize. Please try again later.",
             }
-            return {"status": "failed", "message": messages.get(code, "Binance verification is unavailable. Your credentials have not been saved; please check your Futures account access.")}
+            return {"status": "failed", "message": messages.get(code, "Failed to load Binance account. Please check your Binance connection and Futures access. Your keys were not saved.")}
         except Exception:
             # Never forward exceptions/URLs/keys to logs or the browser.
             return {"status": "failed", "message": "Binance verification could not complete. Your keys were not saved. Please try again later."}
