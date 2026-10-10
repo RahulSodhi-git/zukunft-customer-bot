@@ -1,9 +1,12 @@
 # Setup readiness — 10 October 2026
 
-Not ready for end-to-end customer or live trading tests.
+The new API-only interface and customer backend are deployed. Not ready for live trading.
 
 Implemented and tested locally:
-- Initial API setup followed by Settings inside the customer interface.
+- Separate API-only setup and trading pages; capital is configured only on the trading page.
+- Explicit Continue button after both verified, encrypted connections exist, independent of capital.
+- Saved credentials are masked placeholders; later replacement is available in Settings.
+- Clean form-level errors and account-ID validation prevent confusing login IDs with API keys.
 - Encrypted replacement credentials; no saved secrets returned to the browser.
 - Replacement denied while running, positions open, heartbeat stale, or credential acknowledgement mismatched.
 - Failed verification preserves the working connection; transactional guard rechecks after verification.
@@ -18,21 +21,29 @@ with real RSA encryption/decryption but mocked database and exchange verificatio
 Additional worker API tests cover token auth, paid access, tenant scoping, stale versions,
 heartbeat freshness, malformed input and pause/stop safety.
 Frontend: 1,000 mock-DOM portal lifecycles plus Settings and replacement interaction tests.
-These are NOT browser rendering, production load, real PostgreSQL concurrency, payment,
+Browser rendering and interactions were also checked on desktop and phone-sized views
+using a clearly labelled local fake API: independent saves, validation, masking,
+Continue navigation, Settings and cancellation. Published assets were checked, and
+the protected live page correctly redirects an unauthenticated browser to login.
+These are NOT production load, real PostgreSQL concurrency, payment,
 testnet order or live-money acceptance tests. They do not establish 100-customer VM capacity.
 
 Read-only live checks:
 - Backend /health returns ok=true, paypalConfigured=false, phoneOtpConfigured=false.
-- Deployed backend /worker/accounts returns 404: customer integration is not deployed.
+- Vercel production now serves the new API-only portal and separate trading page.
+- Render production runs customer integration commit 44ae117 with encryption configuration.
+- Authenticated /worker/accounts check from the new Oracle VM returns HTTP 200.
 - Oracle zukunft-customers-01: worker inactive, disabled, EXECUTION_ENABLED=false.
 - Existing tradebot VM/repository unchanged.
 
 Before user end-to-end testing:
-1. Configure the worker token/public encryption key on Render and deploy the tested integration.
-2. Deploy the matching frontend and customer worker, initially read-only.
+1. Complete a real paid test user's API verification. Binance verification still uses
+   Render and honours the current cooldown until 2026-10-10 20:50:43 UTC; it has not
+   been migrated to Oracle. Check exchange IP restrictions before testing real keys.
+2. Enable only read-only customer-worker monitoring after inspecting its release/configuration.
 3. Configure PayPal for a sandbox payment test (normal customer onboarding needs this).
-4. Confirm a paid test user's encrypted API handoff, version acknowledgement and snapshots.
-5. Verify real UI rendering, database transactions and recovery on the deployed setup.
+4. Confirm real encrypted API handoff, worker version acknowledgement and exchange snapshots.
+5. Verify database transactions and recovery on the deployed setup with the paid test account.
 6. Complete Binance request budgeting/websocket work, worker ownership/leases, full trade
    metadata projection and supervised testnet order/recovery tests before enabling execution.
 
